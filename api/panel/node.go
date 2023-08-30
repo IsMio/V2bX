@@ -58,15 +58,17 @@ type BaseConfig struct {
 // VAllssNode is vmess and vless node info
 type VAllssNode struct {
 	CommonNode
-	Tls             int             `json:"tls"`
-	TlsSettings     TlsSettings     `json:"tls_settings"`
-	Network         string          `json:"network"`
-	NetworkSettings json.RawMessage `json:"networkSettings"`
-	ServerName      string          `json:"server_name"`
+	Tls                 int             `json:"tls"`
+	TlsSettings         TlsSettings     `json:"tls_settings"`
+	TlsSettingsBack     *TlsSettings    `json:"tlsSettings"`
+	Network             string          `json:"network"`
+	NetworkSettings     json.RawMessage `json:"network_settings"`
+	NetworkSettingsBack json.RawMessage `json:"networkSettings"`
+	ServerName          string          `json:"server_name"`
 
 	// vless only
-	Flow          string `json:"flow"`
-	RealityConfig RealityConfig
+	Flow          string        `json:"flow"`
+	RealityConfig RealityConfig `json:"-"`
 }
 
 type TlsSettings struct {
@@ -77,7 +79,6 @@ type TlsSettings struct {
 }
 
 type RealityConfig struct {
-	Dest         string `json:"Dest"`
 	Xver         uint64 `json:"Xver"`
 	MinClientVer string `json:"MinClientVer"`
 	MaxClientVer string `json:"MaxClientVer"`
@@ -137,6 +138,14 @@ func (c *Client) GetNodeInfo() (node *NodeInfo, err error) {
 		err = json.Unmarshal(r.Body(), rsp)
 		if err != nil {
 			return nil, fmt.Errorf("decode v2ray params error: %s", err)
+		}
+		if len(rsp.NetworkSettingsBack) > 0 {
+			rsp.NetworkSettings = rsp.NetworkSettingsBack
+			rsp.NetworkSettingsBack = nil
+		}
+		if rsp.TlsSettingsBack != nil {
+			rsp.TlsSettings = *rsp.TlsSettingsBack
+			rsp.TlsSettingsBack = nil
 		}
 		cm = &rsp.CommonNode
 		node.VAllss = rsp

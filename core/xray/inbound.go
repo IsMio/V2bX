@@ -22,13 +22,15 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 	var err error
 	var network string
 	switch nodeInfo.Type {
-	case "v2ray":
+	case "vmess", "vless":
 		err = buildV2ray(option, nodeInfo, in)
 		network = nodeInfo.VAllss.Network
 	case "trojan":
 		err = buildTrojan(option, in)
+		network = "tcp"
 	case "shadowsocks":
 		err = buildShadowsocks(option, nodeInfo, in)
+		network = "tcp"
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s, Only support: V2ray, Trojan, Shadowsocks", nodeInfo.Type)
 	}
@@ -36,8 +38,6 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 		return nil, err
 	}
 	// Set network protocol
-	t := coreConf.TransportProtocol(network)
-	in.StreamSetting = &coreConf.StreamConfig{Network: &t}
 	// Set server port
 	in.PortList = &coreConf.PortList{
 		Range: []coreConf.PortRange{
@@ -105,7 +105,10 @@ func buildInbound(option *conf.Options, nodeInfo *panel.NodeInfo, tag string) (*
 		// Reality
 		in.StreamSetting.Security = "reality"
 		v := nodeInfo.VAllss
-		d, err := json.Marshal(v.RealityConfig.Dest)
+		d, err := json.Marshal(fmt.Sprintf(
+			"%s:%s",
+			v.TlsSettings.ServerName,
+			v.TlsSettings.ServerPort))
 		if err != nil {
 			return nil, fmt.Errorf("marshal reality dest error: %s", err)
 		}
@@ -168,6 +171,9 @@ func buildV2ray(config *conf.Options, nodeInfo *panel.NodeInfo, inbound *coreCon
 	if len(v.NetworkSettings) == 0 {
 		return nil
 	}
+
+	t := coreConf.TransportProtocol(nodeInfo.VAllss.Network)
+	inbound.StreamSetting = &coreConf.StreamConfig{Network: &t}
 	switch v.Network {
 	case "tcp":
 		err := json.Unmarshal(v.NetworkSettings, &inbound.StreamSetting.TCPSettings)
